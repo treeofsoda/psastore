@@ -140,9 +140,9 @@ jobs:
       - name: Read deploy script
         id: read_script
         run: |
-          echo "CONTENT<<'EOF'" >> "$GITHUB_OUTPUT"
-          cat ${{ matrix.script }} >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "CONTENT<<EOF" >> $GITHUB_OUTPUT
+          cat ${{ matrix.script }} >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: SSH & run deploy script
         uses: appleboy/ssh-action@v1.0.0
