@@ -135,9 +135,6 @@ jobs:
           - service: psastoresearch
             script: scripts/deploy-psastoresearch.sh
 
-    env:
-      DOCKER_IMAGE: ${{ env.REGISTRY }}/${{ matrix.service }}:latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -150,6 +147,8 @@ jobs:
 
       - name: SSH & run deploy script
         uses: appleboy/ssh-action@v1.0.0
+        env:
+          DOCKER_IMAGE: ${{ env.REGISTRY }}/${{ matrix.service }}:latest
         with:
           host: ${{ secrets.GCP_VM_HOST }}
           username: ${{ secrets.GCP_VM_USER }}
