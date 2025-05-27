@@ -80,6 +80,7 @@ jobs:
   dockerize:
     name: "🐳 Build & Push Image (${{ matrix.service }})"
 #    needs: scan
+    needs: build-test
     runs-on: ubuntu-latest
     strategy:
       matrix:
