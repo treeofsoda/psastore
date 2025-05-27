@@ -2,32 +2,40 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - master
+    branches: [ master ]
   pull_request:
-    branches:
-      - master
+    branches: [ master ]
 
+env:
+  REGISTRY: ${{ secrets.DOCKERHUB_USERNAME }}
+
+# ──────────────────────────────────────────────────────────
+# 1️⃣ BUILD & TEST  → 2️⃣ SONAR SCAN → 3️⃣ DOCKERIZE → 4️⃣ DEPLOY
+# ──────────────────────────────────────────────────────────
 jobs:
-
-  # ✅ 合并后的 CI + Docker 构建 + 推送
-  build-test-docker:
+  # ---------- 1️⃣ Build & Test ----------
+  build-test:
+    name: "🔨 Build & Test (${{ matrix.service }})"
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [psastoreadmin, psastoreaccess, psastoregateway, psastorewatch, psastoreweb, psastoresearch]
-
+        service:
+          - psastoreadmin
+          - psastoreaccess
+          - psastoregateway
+          - psastorewatch
+          - psastoreweb
+          - psastoresearch
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: 17
+          distribution: temurin
 
-      - name: Cache Maven packages
+      - name: Cache Maven
         uses: actions/cache@v3
         with:
           path: ~/.m2/repository
@@ -35,15 +43,61 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Build and test
-        run: mvn clean install -pl ${{ matrix.service }} -am
+      - name: Maven package & unit test
+        run: mvn --batch-mode clean package -pl ${{ matrix.service }} -am
 
-      #      - name: SonarCloud Scan
-      #        uses: SonarSource/sonarcloud-github-action@v2
-      #        with:
-      #          projectBaseDir: ${{ matrix.service }}
-      #        env:
-      #          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.service }}-jar
+          path: ${{ matrix.service }}/target/*.jar
+
+#  # ---------- 2️⃣ SonarCloud Scan ----------
+#  scan:
+#    name: "🔍 Sonar Scan (${{ matrix.service }})"
+#    needs: build-test
+#    runs-on: ubuntu-latest
+#    strategy:
+#      matrix:
+#        service:
+#          - psastoreadmin
+#          - psastoreaccess
+#          - psastoregateway
+#          - psastorewatch
+#          - psastoreweb
+#          - psastoresearch
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - name: SonarCloud Scan
+#        uses: SonarSource/sonarcloud-github-action@v2
+#        with:
+#          projectBaseDir: ${{ matrix.service }}
+#        env:
+#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ---------- 3️⃣ Docker Build & Push ----------
+  dockerize:
+    name: "🐳 Build & Push Image (${{ matrix.service }})"
+    needs: scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - psastoreadmin
+          - psastoreaccess
+          - psastoregateway
+          - psastorewatch
+          - psastoreweb
+          - psastoresearch
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.service }}-jar
+          path: ${{ matrix.service }}/target/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -54,19 +108,20 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Build and push Docker image
+      - name: Build & push image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:latest ./${{ matrix.service }}
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:latest
+          docker build -t $REGISTRY/${{ matrix.service }}:latest ./${{ matrix.service }}
+          docker push $REGISTRY/${{ matrix.service }}:latest
 
-  # ☁️ CD 阶段：远程部署
-  deploy-to-gcp:
-    needs: build-test-docker
+  # ---------- 4️⃣ Deploy to GCP VM ----------
+  deploy:
+    name: "🚀 Deploy (${{ matrix.service }})"
+    needs: dockerize
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - service: psastoreadmin
+          - service: psastoreadmin   # ⬇ 对应脚本路径
             script: scripts/deploy-psastoreadmin.sh
           - service: psastoreaccess
             script: scripts/deploy-psastoreaccess.sh
@@ -78,22 +133,20 @@ jobs:
             script: scripts/deploy-psastoreweb.sh
           - service: psastoresearch
             script: scripts/deploy-psastoresearch.sh
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Read script content
+      - name: Read deploy script
         id: read_script
         run: |
-          echo "SCRIPT_CONTENT<<EOF" >> $GITHUB_OUTPUT
-          cat ${{ matrix.script }} >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "CONTENT<<'EOF'" >> "$GITHUB_OUTPUT"
+          cat ${{ matrix.script }} >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
-      - name: Upload & Deploy via SSH
+      - name: SSH & run deploy script
         uses: appleboy/ssh-action@v1.0.0
         env:
-          DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:latest
+          DOCKER_IMAGE: $REGISTRY/${{ matrix.service }}:latest
         with:
           host: ${{ secrets.GCP_VM_HOST }}
           username: ${{ secrets.GCP_VM_USER }}
@@ -101,7 +154,7 @@ jobs:
           envs: DOCKER_IMAGE
           script: |
             cat >/tmp/deploy-${{ matrix.service }}.sh <<'EOF'
-            ${{ steps.read_script.outputs.SCRIPT_CONTENT }}
+            ${{ steps.read_script.outputs.CONTENT }}
             EOF
             chmod +x /tmp/deploy-${{ matrix.service }}.sh
             bash /tmp/deploy-${{ matrix.service }}.sh
