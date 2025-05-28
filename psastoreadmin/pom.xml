@@ -17,6 +17,7 @@
     </parent>
 
     <dependencies>
+         <skipTests>false</skipTests>
         <dependency>
             <groupId>com.psa.psastore</groupId>
             <artifactId>psastorecodegen</artifactId>
