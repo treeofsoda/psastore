@@ -100,11 +100,14 @@ public class UmsRoleControllerTest {
 
     @Test
     public void testList() throws Exception {
+        /* qsli temporary amend */
         List<UmsRole> roleList = Arrays.asList(new UmsRole(), new UmsRole());
-        when(roleService.list()).thenReturn(roleList);
+        when(roleService.list(anyString(), anyInt(), anyInt())).thenReturn(roleList);
         mockMvc.perform(get("/role/list"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").isArray());
+                .andExpect(jsonPath("$.data").isMap())
+                .andExpect(jsonPath("$.data.list").isArray())
+                .andExpect(jsonPath("$.code").value(200));
     }
 
     @Test
