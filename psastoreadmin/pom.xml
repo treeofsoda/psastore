@@ -16,8 +16,11 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
+    <properties>
+             <skipTests>false</skipTests>
+    </properties>
+
     <dependencies>
-        <skipTests>false</skipTests>
         <dependency>
             <groupId>com.psa.psastore</groupId>
             <artifactId>psastorecodegen</artifactId>
