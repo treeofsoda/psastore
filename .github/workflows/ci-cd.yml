@@ -52,29 +52,30 @@ jobs:
           name: ${{ matrix.service }}-jar
           path: ${{ matrix.service }}/target/*.jar
 
-#  # ---------- 2️⃣ SonarCloud Scan ----------
-#  scan:
-#    name: "🔍 Sonar Scan (${{ matrix.service }})"
-#    needs: build-test
-#    runs-on: ubuntu-latest
-#    strategy:
-#      matrix:
-#        service:
-#          - psastoreadmin
-#          - psastoreaccess
-#          - psastoregateway
-#          - psastorewatch
-#          - psastoreweb
-#          - psastoresearch
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: SonarCloud Scan
-#        uses: SonarSource/sonarcloud-github-action@v2
-#        with:
-#          projectBaseDir: ${{ matrix.service }}
-#        env:
-#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  # ---------- 2️⃣ SonarCloud Scan ----------
+  scan:
+   name: "🔍 Sonar Scan (${{ matrix.service }})"
+   needs: build-test
+   runs-on: ubuntu-latest
+   strategy:
+     matrix:
+       service:
+         - psastoreadmin
+         - psastoreaccess
+         - psastoregateway
+         - psastorewatch
+         - psastoreweb
+         - psastoresearch
+   steps:
+     - uses: actions/checkout@v4
+
+     - name: SonarCloud Scan
+       uses: SonarSource/sonarcloud-github-action@v2
+       with:
+         projectBaseDir: ${{ matrix.service }}
+       env:
+         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # ---------- 3️⃣ Docker Build & Push ----------
   dockerize:
