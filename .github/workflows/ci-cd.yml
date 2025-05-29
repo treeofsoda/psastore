@@ -69,9 +69,11 @@ jobs:
    steps:
      - uses: actions/checkout@v4
 
-     - name: Build for Sonar
-       working-directory: .
-       run: mvn --batch-mode clean test
+     - name: Download JAR artifact
+       uses: actions/download-artifact@v4
+       with:
+          name: ${{ matrix.service }}-jar
+          path: ${{ matrix.service }}/target/
 
      - name: SonarCloud Scan
        uses: SonarSource/sonarcloud-github-action@v2
