@@ -61,11 +61,11 @@ jobs:
      matrix:
        service:
          - psastoreadmin
-        #  - psastoreaccess
-        #  - psastoregateway
-        #  - psastorewatch
-        #  - psastoreweb
-        #  - psastoresearch
+         - psastoreaccess
+         - psastoregateway
+         - psastorewatch
+         - psastoreweb
+         - psastoresearch
    steps:
      - uses: actions/checkout@v4
 
